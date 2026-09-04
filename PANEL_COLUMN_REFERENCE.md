@@ -1,6 +1,6 @@
 # Panel column reference: redcar_ssi_2015_panel.csv
 
-Redcar SSI closure episode (Oct 2015). 255 rows x 166 columns.
+Redcar SSI closure episode (Oct 2015). 255 rows x 179 columns.
 17 quarters: 2015Q4 to 2019Q4. 15 row types per quarter (age band x gender combinations).
 
 Data quality flags used throughout:
@@ -352,6 +352,60 @@ Data quality: HIGH (DWP administrative data). Fetched by `integrate_esa.py`.
 
 ---
 
+## RC LA population estimates — rc_la_pop_* columns
+
+ONS mid-year population estimates for Redcar and Cleveland LA, fetched from Nomis NM_31_1. Published annually (reference date: mid-June each year). The same annual value is repeated across all three months of each quarter. All 2015-2019 years are available.
+
+Data quality: HIGH (ONS administrative).  Fetched by `fetch_supplementary.py`. Cache stored in `_nomis_cache/rc_population_raw.csv`.
+
+| Column | Description | Real or estimated | Source |
+|---|---|---|---|
+| rc_la_pop_total | Total population, RC LA (ONS mid-year estimate) | HIGH | Nomis NM_31_1 |
+| rc_la_pop_year | Calendar year of the mid-year estimate (e.g. 2016) | — | — |
+| rc_la_pop_data_quality | Always HIGH | — | — |
+| rc_la_pop_working_age | Working-age (16-64) population, RC LA | UNAVAILABLE | NM_31_1 does not return a working-age aggregate via API; single-year-of-age table requires manual summing. All NaN. |
+
+**Values:** 2015=135,370; 2016=135,344; 2017=135,584; 2018=136,276; 2019=136,699. Population is stable, confirming no significant net migration effect during the closure period.
+
+---
+
+## RC LA house price index — rc_hpi_* columns
+
+Land Registry UK HPI for Redcar and Cleveland LA. Downloaded from the Land Registry linked data browser as a pre-filtered monthly CSV covering October 2015 to December 2019. Monthly figures aggregated to quarterly means and sums. Parsed by `integrate_hpi.py`. Source data stored in `_source_data/ukhpi_rc_2015_2019.csv`.
+
+Data quality: HIGH (Land Registry administrative transactions data).
+
+The HPI index uses January 2015 = 100 as the base across England. RC LA index values in the 73-78 range reflect that RC LA prices are substantially below the England average — not a decline from 100, but rather where RC sits within the national distribution.
+
+| Column | Description | Real or estimated | Source |
+|---|---|---|---|
+| rc_hpi_avg_price_q_mean | Mean of monthly average sale prices (all property types), RC LA (GBP) | HIGH | Land Registry UK HPI |
+| rc_hpi_index_q_mean | Mean HPI index (base Jan 2015=100, all property types) | HIGH | Land Registry UK HPI |
+| rc_hpi_pct_yoy_q_mean | Mean year-on-year % price change across the quarter | HIGH | Land Registry UK HPI |
+| rc_hpi_sales_vol_q_sum | Sum of monthly sales volumes within the quarter (transaction count) | HIGH | Land Registry UK HPI |
+| rc_hpi_sales_q_mean | Placeholder column — all NaN. Superseded by rc_hpi_sales_vol_q_sum. | UNAVAILABLE | — |
+| rc_hpi_data_quality | Always HIGH | — | — |
+
+**Key pattern:** Prices were falling in 2015Q4 (-1.3% YoY) during the closure shock, recovered slightly through 2016-2017, then softened again in 2018-2019 (-3.2% YoY in 2019Q1). Quarterly average prices range from ~£106k (2015Q4) to ~£113k (2017Q4-2019Q4).
+
+---
+
+## RC LA housing benefit — rc_hb_* columns (placeholder)
+
+Housing Benefit claimant data is not available via Nomis or any programmatic API. DWP publishes it through Stat-Xplore only (login required). These columns are placeholder stubs — all values are NaN.
+
+To populate: download from Stat-Xplore → Housing Benefit → HB Caseload (tenure type) → Geography: Redcar and Cleveland → Rows: Quarter → 2015Q4 to 2019Q4. Save as `_source_data/hb_redcar_2015_2019.xlsx`.
+
+**Note:** HB claimant counts fall from 2017 onward because Universal Credit absorbed Housing Benefit for working-age claimants. The decline does not fully reflect reduced housing need.
+
+| Column | Description | Real or estimated | Source |
+|---|---|---|---|
+| rc_hb_claimants_q_mean | Mean monthly Housing Benefit claimants, RC LA — all NaN | UNAVAILABLE | DWP Stat-Xplore (manual download required) |
+| rc_hb_data_quality | UNAVAILABLE for all rows | — | — |
+| rc_hb_uc_caveat | UC caveat note — all NaN | — | — |
+
+---
+
 ## Statistical estimates — stat_* columns
 
 All stat_* columns are model outputs, not observed data. They are applied uniformly across all row types in a quarter (the same values repeat across the 15 rows of a given quarter). Confidence intervals are 5th/95th percentile from bootstrap or Monte Carlo sampling.
@@ -426,8 +480,10 @@ The prior said 25/40/35. RC LA ACC data pulled exit up substantially, reflecting
 
 ## Known gaps
 
-- **ESA caseload:** Health-benefit exit data not yet integrated. integrate_esa.py is ready; requires two Stat-Xplore downloads (ESA Caseload 4, RC LA, split at Feb 2018 boundary).
-- **JSA duration:** Suppressed at LA level on Nomis. North East regional availability not yet verified.
+- **Housing Benefit:** rc_hb_* columns are all NaN. DWP only publishes HB data through Stat-Xplore (login required). Manual download needed — see rc_hb_* section above.
+- **PIP (Personal Independence Payment):** Not yet in panel. Available from Stat-Xplore → PIP Cases with Entitlement, RC LA, 2015Q4-2019Q4.
+- **Working-age population:** rc_la_pop_working_age is NaN. Nomis NM_31_1 does not return a 16-64 aggregate via the API; requires summing single-year-of-age rows manually.
+- **JSA duration:** Suppressed at LA level on Nomis. NE regional level (ne_jsa_* columns) is available as a benchmark.
 - **Vacancy data:** Nomis regional vacancy series (NM_5_1, NM_19_1-24_1, NM_89_1) all end before 2012. Not available for 2015-2019.
 - **UC migration adjustment:** ACC counts from 2017 onward are affected by Universal Credit rollout. No formal adjustment applied; rows from 2017Q1 onward carry a caveat in the notes column.
 - **ASHE age x region:** ONS does not publish ASHE by age band at regional level. The ashe_age_* columns use national age ratios scaled to NE aggregate — an approximation.
@@ -447,3 +503,6 @@ The prior said 25/40/35. RC LA ACC data pulled exit up substantially, reflecting
 | ONS ASHE Table 6 | Age group weekly pay | HIGH (national), HIGH_SCALED (NE est.) | Age-specific wage distributions |
 | ONS BEAO timeseries | Redundancy notifications | HIGH | National macroeconomic context |
 | Stat-Xplore ACC4 | Age by gender, RC LA | HIGH | Real RC LA ACC by age and gender |
+| Nomis NM_31_1 | ONS mid-year population estimates | HIGH | RC LA total population 2015-2019 |
+| Land Registry UK HPI | Monthly average prices, RC LA | HIGH | RC LA house price index and sales volumes |
+| DWP Stat-Xplore ESA Caseload | ESA phases, RC LA | HIGH | ESA caseload by phase (esa_* columns) |
