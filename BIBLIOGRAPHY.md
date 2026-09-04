@@ -29,12 +29,25 @@ All Nomis series accessed via the Nomis REST API (https://www.nomisweb.co.uk/api
 | NM_30_1 | Annual Survey of Hours and Earnings (aggregate) | NE median and percentile weekly pay | build_redcar_panel.py, parse_ashe_age.py |
 | NM_189_1 | Business Register and Employment Survey (BRES) | RC LA sector employment (manufacturing, mining/utilities, total) | build_redcar_panel.py |
 | NM_4_1 | Jobseeker's Allowance by Age and Duration | NE JSA stock by duration band (2015Q4-2019Q4) | fetch_redcar_extra.py |
+| NM_31_1 | ONS mid-year population estimates | RC LA total population 2015-2019 | fetch_supplementary.py |
 
 **Nomis citation:** Office for National Statistics. *Nomis: Official Labour Market Statistics*. Available at: https://www.nomisweb.co.uk
 
 **Note on NM_4_1 geography:** JSA duration stock is suppressed at local authority level by DWP. North East regional level (E12000001) is available and used here as a regional benchmark.
 
+**Note on NM_31_1:** Returns total population only at LA level via the API. Working-age (16-64) population requires summing single-year-of-age rows manually and was not fetched programmatically.
+
 **Note on UC migration:** Alternative Claimant Count (NM_162_1) includes Universal Credit claimants from the point of UC rollout. Redcar and Cleveland UC rollout began mid-2016. Claimant counts from 2017 onward include UC claimants not previously captured in JSA figures, creating a partial discontinuity with pre-UC counts. All 2017+ rows in the panel carry a UC migration caveat in the `notes` column.
+
+### Land Registry UK House Price Index
+
+HM Land Registry. *UK House Price Index: Local Authority data*. Available via the Land Registry linked data browser at: https://landregistry.data.gov.uk/app/ukhpi/browse
+
+> Used for: monthly average sale prices, HPI index (base Jan 2015=100), year-on-year % change, and sales volumes for Redcar and Cleveland LA (E06000003), October 2015 to December 2019. Downloaded as a pre-filtered CSV from the linked data browser and stored as `_source_data/ukhpi_rc_2015_2019.csv`. Monthly figures aggregated to quarterly means/sums by `integrate_hpi.py`. Columns prefixed `rc_hpi_*`.
+
+**Note on programmatic access:** The Land Registry S3 public bucket (`prod.publicdata.landregistry.gov.uk`) returned 403 Forbidden at time of data collection. The linked data browser download (filtered by geography and date range) was used instead.
+
+---
 
 ### ONS Annual Survey of Hours and Earnings — Table 6 (age group)
 
@@ -52,11 +65,13 @@ Office for National Statistics. *Redundancies: BEAO — Redundancies (Thousands)
 
 The following files were downloaded manually from DWP Stat-Xplore (https://stat-xplore.dwp.gov.uk) and are stored in `_source_data/`. They cannot be fetched programmatically as Stat-Xplore requires a login.
 
-| File | Dataset | Geography | Period |
-|---|---|---|---|
-| acc4_age_gender_redcar_cleveland.xlsx | ACC4 — Alternative Claimant Count by Age and Gender | Redcar and Cleveland LA | Oct 2015 - Dec 2019 |
-| esa_redcar_to_feb2018.xlsx | ESA Caseload — Data to February 2018 | Redcar and Cleveland LA | Nov 2008 - Feb 2018 |
-| esa_redcar_from_may2018.xlsx | ESA Caseload — Data from May 2018 | Redcar and Cleveland LA | May 2018 - Nov 2025 |
+| File | Dataset | Geography | Period | Status |
+|---|---|---|---|---|
+| acc4_age_gender_redcar_cleveland.xlsx | ACC4 — Alternative Claimant Count by Age and Gender | Redcar and Cleveland LA | Oct 2015 - Dec 2019 | Integrated (integrate_statxplore.py) |
+| esa_redcar_to_feb2018.xlsx | ESA Caseload — Data to February 2018 | Redcar and Cleveland LA | Nov 2008 - Feb 2018 | Integrated (integrate_esa.py) |
+| esa_redcar_from_may2018.xlsx | ESA Caseload — Data from May 2018 | Redcar and Cleveland LA | May 2018 - Nov 2025 | Integrated (integrate_esa.py) |
+| hb_redcar_2015_2019.xlsx | Housing Benefit — HB Caseload (tenure type) | Redcar and Cleveland LA | 2015 Q4 - 2019 Q4 | Not yet downloaded — placeholder columns in panel (all NaN) |
+| pip_redcar_2015_2019.xlsx | Personal Independence Payment — PIP Cases with Entitlement | Redcar and Cleveland LA | 2015 Q4 - 2019 Q4 | Not yet downloaded — not yet in panel |
 
 **DWP Stat-Xplore citation:** Department for Work and Pensions. *Stat-Xplore*. Available at: https://stat-xplore.dwp.gov.uk
 
@@ -99,7 +114,16 @@ python3 research/redcar/integrate_esa.py \
   --pre research/redcar/_source_data/esa_redcar_to_feb2018.xlsx \
   --post research/redcar/_source_data/esa_redcar_from_may2018.xlsx
 
-# 6. Run statistical estimation (Methods 1, 2, 2b, 3)
+# 6. Add RC LA population estimates (fetches from Nomis NM_31_1)
+python3 research/redcar/fetch_supplementary.py
+
+# 7. Add Land Registry UK HPI (requires pre-filtered CSV from linked data browser)
+#    Download: https://landregistry.data.gov.uk/app/ukhpi/browse
+#    Area: Redcar and Cleveland, Oct 2015 to Dec 2019
+#    Save as: research/redcar/_source_data/ukhpi_rc_2015_2019.csv
+python3 research/redcar/integrate_hpi.py
+
+# 8. Run statistical estimation (Methods 1, 2, 2b, 3)
 python3 research/redcar/estimate_statistical.py
 ```
 
